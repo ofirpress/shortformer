@@ -9,7 +9,7 @@ This script depends on fast_align and mosesdecoder tools. You will need to
 build those before running the script.
 fast_align:
     github: http://github.com/clab/fast_align
-    instructions: follow the instructions in README.md
+    instructions: follow the instructions in README_fairseq.md
 mosesdecoder:
     github: http://github.com/moses-smt/mosesdecoder
     instructions: http://www.statmt.org/moses/?n=Development.GetStarted

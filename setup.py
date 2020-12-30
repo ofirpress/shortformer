@@ -13,7 +13,7 @@ if sys.version_info < (3, 6):
     sys.exit('Sorry, Python >= 3.6 is required for fairseq.')
 
 
-with open('README.md') as f:
+with open('README_fairseq.md') as f:
     readme = f.read()
 
 
