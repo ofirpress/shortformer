@@ -1,6 +1,6 @@
 # Shortformer
 
-This repository contains the code for the Shortformer model. This file explains how to run our experiments on the WikiText-103 dataset.
+This repository contains the code for the Shortformer model. This file explains how to run our experiments on the WikiText-103 dataset. Read the full paper [here](https://ofir.io/shortformer.pdf). 
 
 The Shortformer is a combination of two methods:
 1. **Staged Training**: We first train the model on short input subsequences and then train it on longer ones. This improves both train speed and evaluation perplexity.
