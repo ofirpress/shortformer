@@ -632,6 +632,9 @@ class TransformerDecoder(FairseqIncrementalDecoder):
                 self.output_projection.weight, mean=0, std=self.output_embed_dim ** -0.5
             )
 
+        self.no_mask_counter = 0
+        self.to_see = self.args.max_tokens
+
     def build_decoder_layer(self, args, no_encoder_attn=False):
         return TransformerDecoderLayer(args, no_encoder_attn)
 
@@ -751,8 +754,8 @@ class TransformerDecoder(FairseqIncrementalDecoder):
         if self.project_in_dim is not None:
             x = self.project_in_dim(x)
 
-        if positions is not None:
-            x += positions
+        # if positions is not None:
+        #     x += positions
 
         if self.layernorm_embedding is not None:
             x = self.layernorm_embedding(x)
@@ -765,6 +768,36 @@ class TransformerDecoder(FairseqIncrementalDecoder):
         self_attn_padding_mask: Optional[Tensor] = None
         if self.cross_self_attention or prev_output_tokens.eq(self.padding_idx).any():
             self_attn_padding_mask = prev_output_tokens.eq(self.padding_idx)
+        else:
+            # Even when using sliding inference, we don't apply it to the first args.max_tokens tokens
+            # (max_tokens is what we call subsequence length (L) in the paper). This is because it probably
+            # wouldn't save much time. In order to detect if we are still generating the first max_tokens tokens
+            # we check if there are any padding symbols in the input. If yes, it means we are still generating
+            # the first max_tokens tokens. If not, we start incrementing the no_mask_counter (which makes the model
+            # save its first cache entry. When no_mask_counter > 1, it means we have data in our cache and can start
+            # using it.
+            # to_see is the number of tokens that our model can attend to right now. At first its max_tokens and
+            # it grows by 1 every iteration (until resetting at max_tokens*2). This is because in all our models
+            # the number of entries in the cache (L' in the paper) is equal to the number of tokens in each subsequence (L).
+
+            if self.args.sliding_inf > -1: # Only get beyond this line if we are doing token-by-token inference.
+                self.no_mask_counter += 1
+                if self.no_mask_counter > 1:
+                    self.to_see +=1
+                    if self.to_see > self.args.max_tokens*2  :
+                        self.to_see = self.args.max_tokens + 1
+
+        if self.no_mask_counter > 1:
+            # We only get here during token-by-token inference.
+            # When we do token-by-token inference, fairseq gives us the previous max_tokens at every iteration.
+            # But if we're here, it means we've started using the cache, which means we don't need to recompute
+            # all previous representations (we're going to reuse the cached ones), so we just need the *last* input token
+            # and that is what we do here.
+
+            x_shape = x.shape
+            x = x[-1:,:,:]
+
+
 
         # decoder layers
         attn: Optional[Tensor] = None
@@ -777,6 +810,7 @@ class TransformerDecoder(FairseqIncrementalDecoder):
 
             x, layer_attn, _ = layer(
                 x,
+                positions.transpose(0, 1),
                 encoder_out.encoder_out if encoder_out is not None else None,
                 encoder_out.encoder_padding_mask if encoder_out is not None else None,
                 incremental_state,
@@ -784,6 +818,7 @@ class TransformerDecoder(FairseqIncrementalDecoder):
                 self_attn_padding_mask=self_attn_padding_mask,
                 need_attn=bool((idx == alignment_layer)),
                 need_head_weights=bool((idx == alignment_layer)),
+                to_see = self.to_see if self.no_mask_counter > 1 else 0,
             )
             inner_states.append(x)
             if layer_attn is not None and idx == alignment_layer:
@@ -798,6 +833,14 @@ class TransformerDecoder(FairseqIncrementalDecoder):
 
         if self.layer_norm is not None:
             x = self.layer_norm(x)
+
+        if self.no_mask_counter > 1:
+            # We only get here during token-by-token inference.
+            # We're making a prediction about just the next *single* output, but
+            # because fairseq gave us max_tokens tokens it wants us to give it max_tokens predictions
+            # (although in this mode it'll only look at the last prediction), so we just pad
+            # our output with zeros (that will be ignored).
+            x = torch.cat((x.new_zeros(x_shape[0]-1, x_shape[1], x_shape[2]), x), dim=0)
 
         # T x B x C -> B x T x C
         x = x.transpose(0, 1)

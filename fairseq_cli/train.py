@@ -28,7 +28,7 @@ from fairseq.data import iterators
 from fairseq.logging import meters, metrics, progress_bar
 from fairseq.model_parallel.megatron_trainer import MegatronTrainer
 from fairseq.trainer import Trainer
-
+from fairseq.modules import TransformerDecoderLayer
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -171,6 +171,7 @@ def should_stop_early(args, valid_loss):
 @metrics.aggregate("train")
 def train(args, trainer, task, epoch_itr):
     """Train the model for one epoch and return validation losses."""
+    clear_prev_tokens(trainer)
     # Initialize data iterator
     itr = epoch_itr.next_epoch_itr(
         fix_batches_to_gpus=args.fix_batches_to_gpus,
@@ -286,10 +287,16 @@ def get_training_stats(stats):
     stats["wall"] = round(metrics.get_meter("default", "wall").elapsed_time, 0)
     return stats
 
+def clear_prev_tokens(trainer):
+    # This function clears the cache before/after validation.
+    for name, module in trainer.get_model().named_modules():
+        if isinstance(module, TransformerDecoderLayer):
+            module.prev_out = None
 
 def validate(args, trainer, task, epoch_itr, subsets):
     """Evaluate the model on the validation set(s) and return the losses."""
 
+    clear_prev_tokens(trainer)
     if args.fixed_validation_seed is not None:
         # set fixed seed for every validation
         utils.set_torch_seed(args.fixed_validation_seed)

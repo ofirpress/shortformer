@@ -160,6 +160,7 @@ class TransformerDecoderLayer(nn.Module):
         self, args, no_encoder_attn=False, add_bias_kv=False, add_zero_attn=False
     ):
         super().__init__()
+        self.args = args
         self.embed_dim = args.decoder_embed_dim
         self.dropout_module = FairseqDropout(args.dropout, module_name=self.__class__.__name__)
         self.quant_noise = getattr(args, "quant_noise_pq", 0)
@@ -210,6 +211,10 @@ class TransformerDecoderLayer(nn.Module):
 
         self.onnx_trace = False
 
+        self.tfp = self.args.tokens_from_prev
+        if self.tfp > 0:
+            self.prev_out = None # This is the cache
+
     def build_fc1(self, input_dim, output_dim, q_noise, qn_block_size):
         return quant_noise(nn.Linear(input_dim, output_dim), q_noise, qn_block_size)
 
@@ -223,7 +228,7 @@ class TransformerDecoderLayer(nn.Module):
             dropout=args.attention_dropout,
             add_bias_kv=add_bias_kv,
             add_zero_attn=add_zero_attn,
-            self_attention=not getattr(args, "cross_self_attention", False),
+            #self_attention=not getattr(args, "cross_self_attention", False),
             q_noise=self.quant_noise,
             qn_block_size=self.quant_noise_block_size,
         )
@@ -246,6 +251,7 @@ class TransformerDecoderLayer(nn.Module):
     def forward(
         self,
         x,
+        positions,
         encoder_out: Optional[torch.Tensor] = None,
         encoder_padding_mask: Optional[torch.Tensor] = None,
         incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
@@ -255,6 +261,7 @@ class TransformerDecoderLayer(nn.Module):
         self_attn_padding_mask: Optional[torch.Tensor] = None,
         need_attn: bool = False,
         need_head_weights: bool = False,
+        to_see: int = 0,
     ):
         """
         Args:
@@ -309,10 +316,51 @@ class TransformerDecoderLayer(nn.Module):
             y = torch.cat((encoder_out, x), dim=0)
         else:
             y = x
+        if self.tfp > 0:
+            if self.args.sliding_inf == -1:
+                # If we're here it means we're training. The code below just attaches the
+                # existing cache to the input we just received.
+                if self.prev_out is not None:
+                    if y.shape[1] != self.prev_out.shape[1]: # An edge case that only happens sometimes in the last batch of the epoch
+                        self.prev_out = None
+                    else:
+                        from_prev = self.prev_out[-self.tfp:,:,:]
+                        y = torch.cat((from_prev, y))
+                        # If we use a cache, it means we have to update our mask- all the tokens in the cache are
+                        # historical, so all timesteps can look at them.
+                        self_attn_mask = torch.cat((self_attn_mask.new_zeros(x.shape[0], self.tfp), self_attn_mask), dim=1)
+                    self.prev_out = y.detach().clone()
+                else:
+                    self.prev_out = y.detach().clone() # This is the initial subsequence
+
+            else:
+                # This block is only used during token-by-token inference.
+                if y.shape[0] == self.args.max_tokens:
+                    # This is the first batch of inputs we get which we save in the cache.
+                    # After this, all inputs will be of length 1 so we will not reach this line.
+                    self.prev_out = y.detach().clone()
+                elif y.shape[0] == 1:
+                    if y.shape[1] != self.prev_out.shape[1]:
+                        # Weird case that can only happen if batch size is not 1.
+                        print('skipping', y.shape[1], self.prev_out.shape[1])
+                        self.prev_out = y.detach().clone()
+                    else:
+                        from_prev = self.prev_out[-(to_see-1):, :, :]
+                        y = torch.cat((from_prev, y))
+                        self_attn_mask = None # We are doing token by token inference so we don't need an attention mask.
+                        self.prev_out = y.detach().clone()
+
+
+        pos_key = positions[:y.shape[0]]
+
+        if to_see > 0:
+            pos_query = positions[to_see - 1].unsqueeze(0) # This is what we do during (token-by-token) inference.
+        else:
+            pos_query = positions[y.shape[0]-x.shape[0]:y.shape[0]] # This is what we do during training.
 
         x, attn = self.self_attn(
-            query=x,
-            key=y,
+            query=x + pos_query,
+            key=y + pos_key,
             value=y,
             key_padding_mask=self_attn_padding_mask,
             incremental_state=incremental_state,

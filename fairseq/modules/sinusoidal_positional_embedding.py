@@ -65,6 +65,11 @@ class SinusoidalPositionalEmbedding(nn.Module):
         positions: Optional[Any] = None,
     ):
         """Input is expected to be of size [bsz x seqlen]."""
+        input_dim = input.shape[1]                # This is very hacky. Usually when the input subsequence
+        input_mul =int( 7000//input_dim) + 1      # is of size n, we get n positional embeddings. But in order
+        input_for_cat = tuple([input]*input_mul)  # to handle both attending to the current input subsequence and to the previous (cached) one,
+        input = torch.cat(input_for_cat, dim = 1) # we need more positional embeddings, and so this is how we do that.
+
         bspair = torch.onnx.operators.shape_as_tensor(input)
         bsz, seq_len = bspair[0], bspair[1]
         max_pos = self.padding_idx + 1 + seq_len

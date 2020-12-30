@@ -94,6 +94,10 @@ class LanguageModelingTask(FairseqTask):
         parser.add_argument('--shorten-data-split-list', default='',
                             help='comma-separated list of dataset splits to apply shortening to, '
                                  'e.g., "train,valid" (default: all dataset splits)')
+        parser.add_argument('--tokens-from-prev', default=0, type=int,
+                            help="number of tokens from the previous input subsequence that we will attend to")
+        parser.add_argument('--sliding-inf', type= int, default = -1,
+                            help="set this to 1 for token-by-token inference")
         # fmt: on
 
     def __init__(self, args, dictionary, output_dictionary=None, targets=None):
@@ -208,7 +212,7 @@ class LanguageModelingTask(FairseqTask):
             src_vocab=self.dictionary,
             tgt_vocab=self.output_dictionary,
             add_eos_for_other_targets=add_eos_for_other_targets,
-            shuffle=True,
+            shuffle=False,
             targets=self.targets,
             add_bos_token=self.args.add_bos_token,
         )

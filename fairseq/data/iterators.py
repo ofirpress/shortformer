@@ -449,14 +449,39 @@ class ShardedIterator(CountingIterator):
         if shard_id < 0 or shard_id >= num_shards:
             raise ValueError('shard_id must be between 0 and num_shards')
         sharded_len = int(math.ceil(len(iterable) / float(num_shards)))
-        itr = map(
-            operator.itemgetter(1),
-            itertools.zip_longest(
-                range(sharded_len),
-                itertools.islice(iterable, shard_id, len(iterable), num_shards),
-                fillvalue=fill_value,
-            ),
-        )
+
+        batch_size = len(list(iterable)[0])
+        last = max( list(map(max, *list(iterable))))
+
+        # This function receives a list [1,2,3,...., last] where each number represents one of the input subsequences
+        # In the unmodified fairseq, if you have 4 GPUS, fairseq will give the first GPU subsequences [1,5,9,13,...],
+        # the second GPU will get [2,6,10,14,..], the third GPU will get [3,7,11,15] and so on...
+        # If we want to do caching, we can't use that. We need each GPU to get a continuous list of input subsequences (like [1,2,3,4,5,...]).
+        # So what the following code does, is it splits the input into *continuous* chunks of subsequences. For example, if we have
+        # 4 GPUs and 100,000 input subsequences, the first GPU will get [1,2,3,...,25000], the second GPU will get [25001,25002,25003,...],
+        # and so on.
+        # The above description was written with the assumption that batch_size is 1. This function also works when batch_size is greater than 1.
+
+        iterable = range(0, last)
+        all_itrs = []
+        for i in range(shard_id*batch_size, (shard_id+1)*batch_size):
+            itr = list(itertools.islice(iterable, i * sharded_len,
+                                        (i +1 )* sharded_len    ))
+
+
+            all_itrs.append(itr)
+
+        itr = [x for x in itertools.chain(*itertools.zip_longest(*all_itrs)) if x is not None]
+        itr = [itr[i:i+batch_size] for i in range(0, len(itr), batch_size)]  #split to batches
+
+
+        if len(itr) != sharded_len:  #this makes sure that we don't miss any input subsequences
+            to_add = sharded_len - len(itr)
+            to_add = [[e] for e in range(sharded_len-to_add, sharded_len)]
+            itr = itr + to_add
+
+
+
         super().__init__(
             itr,
             start=int(math.ceil(getattr(iterable, 'n', 0) / float(num_shards))),
