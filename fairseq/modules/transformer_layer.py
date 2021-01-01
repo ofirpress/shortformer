@@ -357,6 +357,14 @@ class TransformerDecoderLayer(nn.Module):
             pos_query = positions[to_see - 1].unsqueeze(0) # This is what we do during (token-by-token) inference.
         else:
             pos_query = positions[y.shape[0]-x.shape[0]:y.shape[0]] # This is what we do during training.
+                                                                    # If our subsequence length is 3, that means
+                                                                    # that the cache will always get positional embeddings [1,2,3] and so
+                                                                    # the current subsequence gets positional embeddings [4,5,6], both
+                                                                    # in the query and in the key.
+                                                                    # They keys/values are composed of both the current subsequence and the previous one
+                                                                    # while the query is composed just of the vectors of the current subsequence.
+                                                                    # In the next iteration, words 4,5,6 get moved into the cache and get positional embeddings 1,2,3
+                                                                    # and the new words get positional embeddings 4,5,6, and then the process is repeated.
 
         x, attn = self.self_attn(
             query=x + pos_query,

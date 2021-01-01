@@ -1,12 +1,24 @@
 # Shortformer
 
-This repository contains the code for the Shortformer model. This file explains how to run our experiments on the WikiText-103 dataset. Read the full paper [here](https://ofir.io/shortformer.pdf). 
+This repository contains the code for the Shortformer model. This file explains how to run our experiments on the WikiText-103 dataset. Read the full paper [here](https://arxiv.org/abs/2012.15832). 
 
 The Shortformer is a combination of two methods:
 1. **Staged Training**: We first train the model on short input subsequences and then train it on longer ones. This improves both train speed and evaluation perplexity.
-2. **Position-Infused Attention + Caching**: We cache previously computed subsequence representations and attend to them using Position-Infused Attention. We show that this vastly speeds up generation and also improves perplexity. 
+2. **Position-Infused Attention + Caching**: We cache previously computed subsequence representations and attend to them using Position-Infused Attention. Position-Infused Attention modifies the model so that position embeddings are not added to the word embeddings at the bottom of the network, but instead, they are added to the keys and queries in the attention sublayer (but *not* to the values).
+We show that PIA + caching vastly speeds up generation and also improves perplexity. 
 
 Staged training requires no modification to the original code. To see how we implemented the Position-Infused Attention and caching, click [here](https://github.com/ofirpress/shortformer/commit/aa6786f84b788cbafd02e0914c57c99517a1a31c). 
+Implement PIA and caching is very easy, and we've provided detailed comments in the code to explain what how we did it. 
+
+If you use this code or results from our paper, please cite:
+```
+@misc{press2020shortformer,
+      title={Shortformer: Better Language Modeling using Shorter Inputs}, 
+      author={Ofir Press and Noah A. Smith and Mike Lewis},
+      year={2020},
+      eprint={2012.15832},
+}
+```
 
 ## Requirements and Installation
 
