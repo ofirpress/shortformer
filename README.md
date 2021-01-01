@@ -8,7 +8,7 @@ The Shortformer is a combination of two methods:
 We show that PIA + caching vastly speeds up generation and also improves perplexity. 
 
 Staged training requires no modification to the original code. To see how we implemented the Position-Infused Attention and caching, click [here](https://github.com/ofirpress/shortformer/commit/aa6786f84b788cbafd02e0914c57c99517a1a31c). 
-Implement PIA and caching is very easy, and we've provided detailed comments in the code to explain what how we did it. 
+Implementing PIA and caching is very easy, and we've provided detailed comments in the code to explain what how we did it. 
 
 If you use this code or results from our paper, please cite:
 ```
