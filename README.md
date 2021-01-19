@@ -1,6 +1,6 @@
 # Shortformer
 
-This repository contains the code for the Shortformer model. This file explains how to run our experiments on the WikiText-103 dataset. Read the full paper [here](https://arxiv.org/abs/2012.15832). 
+This repository contains the code and the final checkpoint of the Shortformer model. This file explains how to run our experiments on the WikiText-103 dataset. Read the full paper [here](https://arxiv.org/abs/2012.15832). 
 
 The Shortformer is a combination of two methods:
 1. **Staged Training**: We first train the model on short input subsequences and then train it on longer ones. This improves both train speed and evaluation perplexity.
@@ -68,6 +68,10 @@ python train.py --task language_modeling     data-bin/wikitext-103     --save-di
 ```
 
 Again, you can use the update-freq/max-tokens method from above if you run out of memory. 
+
+#### Saved Checkpoint
+If you'd like to download the Shortformer instead of training it, it is available [here](https://dl.fbaipublicfiles.com/shortformer/wikitext103-shortformer.pt). 
+Rename that file to ```checkpoint_best.pt``` if you'd like to follow the directions below.
 
 #### Inference
 
