@@ -1,11 +1,28 @@
 # Shortformer
 
-This repository contains the code and the final checkpoint of the Shortformer model. This file explains how to run our experiments on the WikiText-103 dataset. Read the full paper [here](https://arxiv.org/abs/2012.15832). 
+This repository contains the code and the final checkpoint of the Shortformer model. This file explains how to run our experiments on the WikiText-103 dataset. Read the full ACL 2021 paper [here](https://arxiv.org/abs/2012.15832). 
 
 The Shortformer is a combination of two methods:
 1. **Staged Training**: We first train the model on short input subsequences and then train it on longer ones. This improves both train speed and evaluation perplexity.
-2. **Position-Infused Attention + Caching**: We cache previously computed subsequence representations and attend to them using Position-Infused Attention. Position-Infused Attention modifies the model so that position embeddings are not added to the word embeddings at the bottom of the network, but instead, they are added to the keys and queries in the attention sublayer (but *not* to the values).
+2. **Position-Infused Attention (PIA) + Caching**: We cache previously computed subsequence representations and attend to them using Position-Infused Attention. Position-Infused Attention modifies the model so that position embeddings are not added to the word embeddings at the bottom of the network, but instead, they are added to the keys and queries in the attention sublayer (but *not* to the values).
 We show that PIA + caching vastly speeds up generation and also improves perplexity. 
+
+To use PIA in your transformer model, simply call the attention function as such: 
+
+```
+self-attn(keys=x+position_embeddings, 
+          queries=x+position_embeddings, 
+          values=x) 
+``` 
+Instead of how we usually call the attention function in the vanilla transformer: 
+```
+self-attn(keys=x, 
+          queries=x, 
+          values=x)
+``` 
+
+
+
 
 Staged training requires no modification to the original code. To see how we implemented the Position-Infused Attention and caching, click [here](https://github.com/ofirpress/shortformer/commit/aa6786f84b788cbafd02e0914c57c99517a1a31c). 
 Implementing PIA and caching is very easy, and we've provided detailed comments in the code to explain what how we did it. 
