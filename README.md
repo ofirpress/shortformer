@@ -29,11 +29,18 @@ Implementing PIA and caching is very easy, and we've provided detailed comments 
 
 If you use this code or results from our paper, please cite:
 ```
-@misc{press2020shortformer,
-      title={Shortformer: Better Language Modeling using Shorter Inputs}, 
-      author={Ofir Press and Noah A. Smith and Mike Lewis},
-      year={2020},
-      eprint={2012.15832},
+@inproceedings{shortformer,
+    title = "Shortformer: Better Language Modeling using Shorter Inputs",
+    author = "Press, Ofir  and
+      Smith, Noah A.  and
+      Lewis, Mike",
+    booktitle = "Proceedings of the 59th Annual Meeting of the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing (Volume 1: Long Papers)",
+    month = aug,
+    year = "2021",
+    address = "Online",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2021.acl-long.427",
+    pages = "5493--5505",
 }
 ```
 
