@@ -1,6 +1,6 @@
 # Shortformer
 
-This repository contains the code and the final checkpoint of the Shortformer model. This file explains how to run our experiments on the WikiText-103 dataset. Read the full ACL 2021 paper [here](https://arxiv.org/abs/2012.15832). 
+This repository contains the code and the final checkpoint of the Shortformer model. This file explains how to run our experiments on the WikiText-103 dataset. Read the full ACL 2021 paper [here](https://aclanthology.org/2021.acl-long.427.pdf). 
 
 The Shortformer is a combination of two methods:
 1. **Staged Training**: We first train the model on short input subsequences and then train it on longer ones. This improves both train speed and evaluation perplexity.
